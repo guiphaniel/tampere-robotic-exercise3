@@ -44,6 +44,7 @@ class GoToPoint(Node):
     def steering_angle(self, goal):
         return atan2(goal.y - self.pose.position.y, goal.x - self.pose.position.x)
     
+    # Set the angle between -pi and pi
     def angle_norm (self,angle):
         while angle > pi:
             angle -= 2 * pi
