@@ -1,12 +1,17 @@
 from math import atan2, pi
 from math import sqrt
+from time import sleep
+
+import yaml
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point
+from nav_msgs.msg import Path
 from geometry_msgs.msg import Pose
 from tf_transformations import euler_from_quaternion
+from rosidl_runtime_py import message_to_yaml, set_message_fields
 
 class GoToPoint(Node):    
     def __init__(self):
@@ -17,22 +22,36 @@ class GoToPoint(Node):
         self.pose = Pose()
         
         # Ask the user to input the goal position
-        goal = Point()
-        goal.x = float(input("Set your x goal: "))
-        goal.y = float(input("Set your y goal: "))
+        path = Path()
         
-        # Initialize the publisher
+        path_string = input("Please input you Path (yaml format): ")
+        path_yaml = yaml.safe_load(path_string)
+        set_message_fields(path, path_yaml)
+        
+        # Initialize the publisher for the velocity
         self.velocity_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
-        timer_period = 0.5  # seconds
-        # Initialize a timer that excutes call back function every 0.5 seconds
-        self.timer = self.create_timer(timer_period, lambda goal=goal: self.move2goal(goal))
+        
+        # Initialize the publisher for the error
+        self.error_publisher = self.create_publisher(Float64, '/error', 10)
         
         # Initialize the subscriber to get the current pose
         self.odom_subscriber = self.create_subscription(Odometry, '/odom', self.update_odom, 10)
+        
+        # Check if the path is empty
+        if len(path.poses) == 0:
+            self.get_logger().info("Path is empty!")
+            return
+        
+        # Print first goal position
+        self.get_logger().info("First goal position: " + str(path.poses[0].pose.position.x) + ", " + str(path.poses[0].pose.position.y))
+        
+        # Initialize a timer that excutes call back function every 0.5 seconds
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, lambda path=path: self.moveAlongPath(path))
+        
 
     def update_odom(self, data: Odometry):
         self.pose = data.pose.pose
-        print("Current position: ", self.pose.position.x, self.pose.position.y)
 
     def euclidean_distance(self, goal):
         return sqrt(pow((goal.x - self.pose.position.x), 2) +
@@ -66,33 +85,54 @@ class GoToPoint(Node):
     def move2goal(self, goal):
         vel_msg = Twist()
 
-        if self.euclidean_distance(goal) >= 0.1:
+        distance = self.euclidean_distance(goal)
 
-            # Porportional controller.
-            # https://en.wikipedia.org/wiki/Proportional_control
+        if distance <= 0.1:
+            return True
 
-            # Linear velocity in the x-axis.
-            vel_msg.linear.x = self.linear_vel(goal)
+        # Porportional controller.
+        # https://en.wikipedia.org/wiki/Proportional_control
 
-            # Angular velocity in the z-axis.
-            vel_msg.angular.z = self.angular_vel(goal)
+        # Linear velocity in the x-axis.
+        vel_msg.linear.x = self.linear_vel(goal)
 
-            # Publishing our vel_msg
-            self.velocity_publisher.publish(vel_msg)
+        # Angular velocity in the z-axis.
+        vel_msg.angular.z = self.angular_vel(goal)
 
-        else:
-            # Stopping our robot after the movement is over.
-            self.velocity_publisher.publish(vel_msg)
+        # Publishing our vel_msg
+        self.velocity_publisher.publish(vel_msg)
+        
+        # Publish error
+        distance_msg = Float64()
+        distance_msg.data = distance
+        self.error_publisher.publish(distance_msg)
+
+        return False
             
-            # Print success and ask for new goal
-            print("Goal reached!")
+    def moveAlongPath(self, path):
+        if len(path.poses) == 0:
+            return
+        
+        if self.move2goal(path.poses[0].pose.position):
+            self.get_logger().info("Goal reached!")
+            # Print current position
+            self.get_logger().info("Current position: " + str(self.pose.position.x) + ", " + str(self.pose.position.y))
+            # Print goal position
+            self.get_logger().info("Goal position: " + str(path.poses[0].pose.position.x) + ", " + str(path.poses[0].pose.position.y))
+            # Print error between current and goal position (euclidean distance)
+            self.get_logger().info("Error: " + str(self.euclidean_distance(path.poses[0].pose.position)))
+            
+            path.poses.pop(0)
+            
+            if len(path.poses) == 0:
+                self.stop_turtlebot()
+                self.get_logger().info("Path completed!")
+            else:
+                # Print next goal position
+                self.get_logger().info("Next goal position: " + str(path.poses[0].pose.position.x) + ", " + str(path.poses[0].pose.position.y))
+            
 
     def stop_turtlebot(self):
-        # define what happens when program is interrupted
-        # log that turtlebot is being stopped
-        self.get_logger().info('stopping turtlebot')
-        # publishing an empty Twist() command sets all velocity components to zero
-        # Otherwise turtlebot keeps moving even if command is stopped
         self.velocity_publisher.publish(Twist())
 
 # Main function takes 2 arguments initial position and goal position
