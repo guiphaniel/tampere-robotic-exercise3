@@ -1,5 +1,7 @@
 # Report
 
+For types list, cf.: https://github.com/gazebosim/ros_gz/blob/ros2/ros_gz_bridge/README.md
+
 ## Task1
 
 2. Try out the tele-operation and investigate the topics and nodes with suitable ROS commands 
@@ -41,10 +43,13 @@ Steps to launch exercises:
 - rosdep install -i --from-path src --rosdistro humble -y
 - colcon build --packages-select go_to_point
 - source install/local_setup.bash
-- ros2 run go_to_point go_to_point_node -p goal_x=10.0 -p goal_y=10.0
-- ros2 param list
-- ros2 param set /go_to_point goal_x 1.0
-- ros2 param set /go_to_point goal_y 1.0
+- ros2 run follow_path follow_path_node
+    - {poses: [{pose: {position: {x: 0, y: 2}}}, {pose: {position: {x: 2, y: 2}}}, {pose: {position: {x: 2, y: 0}}}, {pose: {position: {x: 0, y: 0}}}]}
 
+## Task 3
 
-For types list, cf.: https://github.com/gazebosim/ros_gz/blob/ros2/ros_gz_bridge/README.md
+ros2 run rqt_console rqt_console
+ros2 run rqt_plot rqt_plot /error/data
+
+ros2 bag record -o error_bag /error
+ros2 bag play error_bag
