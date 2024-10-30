@@ -1,4 +1,4 @@
-from math import atan2
+from math import atan2, pi
 from math import sqrt
 import rclpy
 from rclpy.node import Node
@@ -38,20 +38,29 @@ class GoToPoint(Node):
         return sqrt(pow((goal.x - self.pose.position.x), 2) +
                     pow((goal.y - self.pose.position.y), 2))
 
-    def linear_vel(self, goal, constant=1):
-        return constant * self.euclidean_distance(goal)
+    def linear_vel(self, goal, constant=1.5):
+        return min(constant * self.euclidean_distance(goal), 0.5)
 
     def steering_angle(self, goal):
         return atan2(goal.y - self.pose.position.y, goal.x - self.pose.position.x)
+    
+    def angle_norm (self,angle):
+        while angle > pi:
+            angle -= 2 * pi
+        while angle < -pi:
+            angle += 2 * pi
+        
+        return angle
 
-    def angular_vel(self, goal, constant=1):
+    def angular_vel(self, goal, constant=1.5):
         # cf. https://answers.ros.org/question/327256/equivalent-turtlesimpose-and-geometry_msgspose/
+        
         orientation_list = [self.pose.orientation.x, self.pose.orientation.y, self.pose.orientation.z, self.pose.orientation.w]
         (roll, pitch, yaw) = euler_from_quaternion(orientation_list)
         
         steering_angle = self.steering_angle(goal)
         
-        return constant * (steering_angle - yaw)
+        return max(min(constant * self.angle_norm(steering_angle - yaw), 3.0), -3.0)
 
     def move2goal(self, goal):
         vel_msg = Twist()
