@@ -45,11 +45,14 @@ Steps to launch exercises:
 - source install/local_setup.bash
 - ros2 run follow_path follow_path_node
     - {poses: [{pose: {position: {x: 0, y: 2}}}, {pose: {position: {x: 2, y: 2}}}, {pose: {position: {x: 2, y: 0}}}, {pose: {position: {x: 0, y: 0}}}]}
+    - {poses: [{pose: {position: {x: 2, y: 2}}}, {pose: {position: {x: 1, y: 3}}}, {pose: {position: {x: 0, y: 2}}}, {pose: {position: {x: -1, y: 3}}}, {pose: {position: {x: -2, y: 2}}}, {pose: {position: {x: 0, y: 0}}}]}
+
 
 ## Task 3
 
 ros2 run rqt_console rqt_console
-ros2 run rqt_plot rqt_plot /error/data
+ros2 run rqt_plot rqt_plot /pose_error/data
+ros2 run rqt_plot rqt_plot /angular_error/data
 
 ros2 bag record -o error_bag /error
 ros2 bag play error_bag

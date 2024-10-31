@@ -32,7 +32,8 @@ class GoToPoint(Node):
         self.velocity_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
         
         # Initialize the publisher for the error
-        self.error_publisher = self.create_publisher(Float64, '/error', 10)
+        self.pose_error_publisher = self.create_publisher(Float64, '/pose_error', 10)
+        self.angular_error_publisher = self.create_publisher(Float64, '/angular_error', 10)
         
         # Initialize the subscriber to get the current pose
         self.odom_subscriber = self.create_subscription(Odometry, '/odom', self.update_odom, 10)
@@ -80,6 +81,8 @@ class GoToPoint(Node):
         
         steering_angle = self.steering_angle(goal)
         
+        self.angular_error_publisher.publish(Float64(data=self.angle_norm(steering_angle - yaw)))
+        
         return max(min(constant * self.angle_norm(steering_angle - yaw), 3.0), -3.0)
 
     def move2goal(self, goal):
@@ -103,9 +106,7 @@ class GoToPoint(Node):
         self.velocity_publisher.publish(vel_msg)
         
         # Publish error
-        distance_msg = Float64()
-        distance_msg.data = distance
-        self.error_publisher.publish(distance_msg)
+        self.pose_error_publisher.publish(Float64(data=distance))
 
         return False
             
